@@ -9,6 +9,7 @@ import { AutoRouterLogo } from 'components/swap/RouterLabel'
 import SwapRoute from 'components/swap/SwapRoute'
 import TradePrice from 'components/swap/TradePrice'
 import UnsupportedCurrencyFooter from 'components/swap/UnsupportedCurrencyFooter'
+import FrontrunningProtectionFooter from 'components/swap/FrontrunningProtectionFooter'
 import { MouseoverTooltip, MouseoverTooltipContent } from 'components/Tooltip'
 import JSBI from 'jsbi'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
@@ -57,8 +58,8 @@ import {
   useSwapActionHandlers,
   useSwapState,
 } from '../../state/swap/hooks'
-import { useExpertModeManager } from '../../state/user/hooks'
-import { LinkStyledButton, TYPE } from '../../theme'
+import { useExpertModeManager, useUserSingleHopOnly, useFrontrunningProtection } from '../../state/user/hooks'
+import { HideSmall, LinkStyledButton, TYPE } from '../../theme'
 import { computeFiatValuePriceImpact } from '../../utils/computeFiatValuePriceImpact'
 import { getTradeVersion } from '../../utils/getTradeVersion'
 import { maxAmountSpend } from '../../utils/maxAmountSpend'
@@ -108,6 +109,9 @@ export default function Swap({ history }: RouteComponentProps) {
 
   // for expert mode
   const [isExpertMode] = useExpertModeManager()
+
+  // for frontrunning protection mode
+  const frontrunningProtection = useFrontrunningProtection()
 
   // get version from the url
   const toggledVersion = useToggledVersion()
@@ -654,6 +658,7 @@ export default function Swap({ history }: RouteComponentProps) {
         </Wrapper>
       </AppBody>
       <SwitchLocaleLink />
+      {frontrunningProtection && !swapIsUnsupported ? <FrontrunningProtectionFooter /> : null}
       {!swapIsUnsupported ? null : (
         <UnsupportedCurrencyFooter
           show={swapIsUnsupported}

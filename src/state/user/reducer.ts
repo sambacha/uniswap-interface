@@ -16,6 +16,9 @@ import {
   updateUserDeadline,
   updateUserExpertMode,
   updateUserLocale,
+  updateArbitrumAlphaAcknowledged,
+  updateFrontrunningProtection,
+  updateFrontrunningProtectionGasFee,
   updateUserClientSideRouter,
   updateUserSlippageTolerance,
 } from './actions'
@@ -43,6 +46,12 @@ export interface UserState {
   // user defined slippage tolerance in bips, used in all txns
   userSlippageTolerance: number | 'auto'
   userSlippageToleranceHasBeenMigratedToAuto: boolean // temporary flag for migration status
+
+  // whether to use a frontrunning protection service
+  frontrunningProtection: boolean
+
+  // Gas fee setting for frontrunning protected swaps
+  frontrunningProtectionGasFee: 'med' | 'high'
 
   // deadline set by user in minutes, used in all txns
   userDeadline: number
@@ -78,6 +87,8 @@ export const initialState: UserState = {
   userHideClosedPositions: false,
   userSlippageTolerance: 'auto',
   userSlippageToleranceHasBeenMigratedToAuto: true,
+  frontrunningProtection: false,
+  frontrunningProtectionGasFee: 'med',
   userDeadline: DEFAULT_DEADLINE_FROM_NOW,
   tokens: {},
   pairs: {},
@@ -187,5 +198,11 @@ export default createReducer(initialState, (builder) =>
         delete state.pairs[chainId][pairKey(tokenBAddress, tokenAAddress)]
       }
       state.timestamp = currentTimestamp()
+    })
+    .addCase(updateFrontrunningProtection, (state, { payload: { frontrunningProtection } }) => {
+      state.frontrunningProtection = frontrunningProtection
+    })
+    .addCase(updateFrontrunningProtectionGasFee, (state, { payload: { frontrunningProtectionGasFee } }) => {
+      state.frontrunningProtectionGasFee = frontrunningProtectionGasFee
     })
 )

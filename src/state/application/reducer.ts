@@ -1,4 +1,5 @@
 import { createReducer, nanoid } from '@reduxjs/toolkit'
+import { Fees } from '@alchemist-coin/mistx-connect'
 import { DEFAULT_TXN_DISMISS_MS } from 'constants/misc'
 import {
   addPopup,
@@ -8,6 +9,7 @@ import {
   ApplicationModal,
   setOpenModal,
   updateChainId,
+  updatePrivateTransactionFees,
   setChainConnectivityWarning,
 } from './actions'
 
@@ -20,6 +22,7 @@ export interface ApplicationState {
   readonly blockNumber: { readonly [chainId: number]: number }
   readonly popupList: PopupList
   readonly openModal: ApplicationModal | null
+  readonly privateTransactionFees: Fees | null
 }
 
 const initialState: ApplicationState = {
@@ -28,6 +31,7 @@ const initialState: ApplicationState = {
   blockNumber: {},
   popupList: [],
   openModal: null,
+  privateTransactionFees: null,
 }
 
 export default createReducer(initialState, (builder) =>
@@ -64,6 +68,9 @@ export default createReducer(initialState, (builder) =>
         }
       })
     })
+    .addCase(updatePrivateTransactionFees, (state, action) => {
+      const { privateTransactionFees } = action.payload
+      state.privateTransactionFees = privateTransactionFees
     .addCase(setChainConnectivityWarning, (state, { payload: { warn } }) => {
       state.chainConnectivityWarning = warn
     })

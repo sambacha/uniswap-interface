@@ -19,6 +19,8 @@ import {
   SerializedPair,
   SerializedToken,
   updateArbitrumAlphaAcknowledged,
+  updateFrontrunningProtection,
+  updateFrontrunningProtectionGasFee,
   updateHideClosedPositions,
   updateUserDarkMode,
   updateUserDeadline,
@@ -159,6 +161,64 @@ export function useUserSlippageTolerance(): Percent | 'auto' {
   return useMemo(
     () => (userSlippageTolerance === 'auto' ? 'auto' : new Percent(userSlippageTolerance, 10_000)),
     [userSlippageTolerance]
+  )
+}
+
+/**
+ * Return whether the user has enabled frontrunning protection
+ */
+export function useFrontrunningProtection(): boolean {
+  const { chainId, library } = useActiveWeb3React()
+  const isMetaMask: boolean | undefined = Boolean(library?.provider?.isMetaMask)
+  const isMainnet = chainId === 1
+
+  const frontrunningProtection = useAppSelector((state) => {
+    return state.user.frontrunningProtection
+  })
+
+  return useMemo((): boolean => {
+    return Boolean(frontrunningProtection) && isMetaMask && isMainnet
+  }, [frontrunningProtection, isMetaMask, isMainnet])
+}
+
+/**
+ * Return callback to enable or disable frontrunning protection
+ */
+export function useSetFrontrunningProtection(): (frontrunningProtection: boolean) => void {
+  const dispatch = useAppDispatch()
+
+  return useCallback(
+    (frontrunningProtection: boolean) => {
+      dispatch(updateFrontrunningProtection({ frontrunningProtection }))
+    },
+    [dispatch]
+  )
+}
+
+/**
+ * Return the gas fee setting for frontrunning protected transactions
+ */
+export function useFrontrunningProtectionGasFee(): 'med' | 'high' {
+  const frontrunningProtectionGasFee = useAppSelector((state) => {
+    return state.user.frontrunningProtectionGasFee
+  })
+
+  return useMemo((): 'med' | 'high' => {
+    return frontrunningProtectionGasFee
+  }, [frontrunningProtectionGasFee])
+}
+
+/**
+ * Return whether the user has enabled frontrunning protection
+ */
+export function useSetFrontrunningProtectionGasFee(): (frontrunningProtectionGasFee: 'med' | 'high') => void {
+  const dispatch = useAppDispatch()
+
+  return useCallback(
+    (frontrunningProtectionGasFee: 'med' | 'high') => {
+      dispatch(updateFrontrunningProtectionGasFee({ frontrunningProtectionGasFee }))
+    },
+    [dispatch]
   )
 }
 

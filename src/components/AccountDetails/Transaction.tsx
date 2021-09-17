@@ -1,6 +1,6 @@
+import { Trans } from '@lingui/macro'
 import styled from 'styled-components/macro'
 import { CheckCircle, Triangle } from 'react-feather'
-
 import { useActiveWeb3React } from '../../hooks/web3'
 import { ExternalLink } from '../../theme'
 import { useAllTransactions } from '../../state/transactions/hooks'
@@ -41,9 +41,13 @@ export default function Transaction({ hash }: { hash: string }) {
 
   const tx = allTransactions?.[hash]
   const summary = tx?.summary
-  const pending = !tx?.receipt
-  const success = !pending && tx && (tx.receipt?.status === 1 || typeof tx.receipt?.status === 'undefined')
-
+  let pending = !tx?.receipt
+  let success = !pending && tx && (tx.receipt?.status === 1 || typeof tx.receipt?.status === 'undefined')
+  if (tx?.privateTransaction) {
+    pending = !tx?.privateTransactionDetails || tx?.privateTransactionDetails.status === 'PENDING_BUNDLE'
+    success =
+      !pending && tx && (tx.receipt?.status === 1 || tx?.privateTransactionDetails?.status === 'SUCCESSFUL_BUNDLE')
+  }
   if (!chainId) return null
 
   return (
@@ -54,7 +58,15 @@ export default function Transaction({ hash }: { hash: string }) {
         success={success}
       >
         <RowFixed>
-          <TransactionStatusText>{summary ?? hash} ↗</TransactionStatusText>
+          <TransactionStatusText>
+            {summary ?? hash}
+            {tx?.privateTransaction && (
+              <>
+                <br />
+                <Trans>Frontrunning Protection: On</Trans>
+              </>
+            )}
+          </TransactionStatusText>
         </RowFixed>
         <IconWrapper pending={pending} success={success}>
           {pending ? <Loader /> : success ? <CheckCircle size="16" /> : <Triangle size="16" />}

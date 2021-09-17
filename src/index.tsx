@@ -14,6 +14,7 @@ import { LanguageProvider } from './i18n'
 import App from './pages/App'
 import store from './state'
 import * as serviceWorkerRegistration from './serviceWorkerRegistration'
+import MistXConnect from './websocket/mistxConnect'
 import ApplicationUpdater from './state/application/updater'
 import ListsUpdater from './state/lists/updater'
 import MulticallUpdater from './state/multicall/updater'
@@ -78,6 +79,7 @@ ReactDOM.render(
                   <App />
                 </ThemeProvider>
               </Blocklist>
+              <MistXConnect />
             </Web3ProviderNetwork>
           </Web3ReactProvider>
         </LanguageProvider>

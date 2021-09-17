@@ -1,17 +1,29 @@
-import { t, Trans } from '@lingui/macro'
-import { useState, useContext } from 'react'
+import { Trans } from '@lingui/macro'
+import { BigNumber } from '@ethersproject/bignumber'
+import { useState, useContext, useCallback } from 'react'
 import { Percent } from '@uniswap/sdk-core'
 import styled, { ThemeContext } from 'styled-components/macro'
 
 import QuestionHelper from '../QuestionHelper'
 import { TYPE } from '../../theme'
 import { AutoColumn } from '../Column'
-import { RowBetween, RowFixed } from '../Row'
+import Row, { RowBetween, RowFixed } from '../Row'
 import { DEFAULT_DEADLINE_FROM_NOW } from 'constants/misc'
 import { darken } from 'polished'
-import { useSetUserSlippageTolerance, useUserSlippageTolerance, useUserTransactionTTL } from 'state/user/hooks'
-import { L2_CHAIN_IDS } from 'constants/chains'
+import {
+  useFrontrunningProtection,
+  useSetFrontrunningProtection,
+  useFrontrunningProtectionGasFee,
+  useSetFrontrunningProtectionGasFee,
+  useSetUserSlippageTolerance,
+  useUserSlippageTolerance,
+  useUserTransactionTTL,
+} from 'state/user/hooks'
+import { usePrivateTransactionFees } from 'state/application/hooks'
+import { L2_CHAIN_IDS, SupportedChainId } from 'constants/chains'
 import { useActiveWeb3React } from 'hooks/web3'
+import Toggle from '../Toggle'
+import { Type } from 'react-feather'
 
 enum SlippageError {
   InvalidInput = 'InvalidInput',
@@ -41,6 +53,7 @@ const FancyButton = styled.button`
 `
 
 const Option = styled(FancyButton)<{ active: boolean }>`
+  padding: 0 8px;
   margin-right: 8px;
   :hover {
     cursor: pointer;
@@ -94,7 +107,7 @@ interface TransactionSettingsProps {
 }
 
 export default function TransactionSettings({ placeholderSlippage }: TransactionSettingsProps) {
-  const { chainId } = useActiveWeb3React()
+  const { chainId, library } = useActiveWeb3React()
   const theme = useContext(ThemeContext)
 
   const userSlippageTolerance = useUserSlippageTolerance()
@@ -108,29 +121,32 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
   const [deadlineInput, setDeadlineInput] = useState('')
   const [deadlineError, setDeadlineError] = useState<DeadlineError | false>(false)
 
-  function parseSlippageInput(value: string) {
-    // populate what the user typed and clear the error
-    setSlippageInput(value)
-    setSlippageError(false)
+  const handleSlippageInput = useCallback(
+    (value: string) => {
+      // populate what the user typed and clear the error
+      setSlippageInput(value)
+      setSlippageError(false)
 
-    if (value.length === 0) {
-      setUserSlippageTolerance('auto')
-    } else {
-      const parsed = Math.floor(Number.parseFloat(value) * 100)
-
-      if (!Number.isInteger(parsed) || parsed < 0 || parsed > 5000) {
+      if (value.length === 0) {
         setUserSlippageTolerance('auto')
-        if (value !== '.') {
-          setSlippageError(SlippageError.InvalidInput)
-        }
       } else {
-        setUserSlippageTolerance(new Percent(parsed, 10_000))
-      }
-    }
-  }
+        const parsed = Math.floor(Number.parseFloat(value) * 100)
 
-  const tooLow = userSlippageTolerance !== 'auto' && userSlippageTolerance.lessThan(new Percent(5, 10_000))
-  const tooHigh = userSlippageTolerance !== 'auto' && userSlippageTolerance.greaterThan(new Percent(1, 100))
+        if (!Number.isInteger(parsed) || parsed < 0 || parsed > 5000) {
+          setUserSlippageTolerance('auto')
+          if (value !== '.') {
+            setSlippageError(SlippageError.InvalidInput)
+          }
+        } else {
+          setUserSlippageTolerance(new Percent(parsed, 10_000))
+        }
+      }
+    },
+    [setUserSlippageTolerance]
+  )
+
+  const slippageTooLow = userSlippageTolerance !== 'auto' && userSlippageTolerance.lessThan(new Percent(5, 10_000))
+  const slippageTooHigh = userSlippageTolerance !== 'auto' && userSlippageTolerance.greaterThan(new Percent(1, 100))
 
   function parseCustomDeadline(value: string) {
     // populate what the user typed and clear the error
@@ -155,7 +171,13 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
   }
 
   const showCustomDeadlineRow = Boolean(chainId && !L2_CHAIN_IDS.includes(chainId))
-
+  const showFrontrunningProtectionRow = chainId === 1 && library && library.provider.isMetaMask
+  const frontrunningProtection = useFrontrunningProtection()
+  const setFrontrunningProtection = useSetFrontrunningProtection()
+  const frontrunningProtectionGasFee = useFrontrunningProtectionGasFee()
+  const setFrontrunningProtectionGasFee = useSetFrontrunningProtectionGasFee()
+  const privateTransactionFees = usePrivateTransactionFees()
+  console.log('frontrunningProtectionGasFee: ', frontrunningProtectionGasFee)
   return (
     <AutoColumn gap="md">
       <AutoColumn gap="sm">
@@ -172,7 +194,7 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
         <RowBetween>
           <Option
             onClick={() => {
-              parseSlippageInput('')
+              handleSlippageInput('')
             }}
             active={userSlippageTolerance === 'auto'}
           >
@@ -180,7 +202,7 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
           </Option>
           <OptionCustom active={userSlippageTolerance !== 'auto'} warning={!!slippageError} tabIndex={-1}>
             <RowBetween>
-              {tooLow || tooHigh ? (
+              {slippageTooLow || slippageTooHigh ? (
                 <SlippageEmojiContainer>
                   <span role="img" aria-label="warning">
                     ⚠️
@@ -196,7 +218,7 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
                     ? ''
                     : userSlippageTolerance.toFixed(2)
                 }
-                onChange={(e) => parseSlippageInput(e.target.value)}
+                onChange={(e) => handleSlippageInput(e.target.value)}
                 onBlur={() => {
                   setSlippageInput('')
                   setSlippageError(false)
@@ -207,7 +229,7 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
             </RowBetween>
           </OptionCustom>
         </RowBetween>
-        {slippageError || tooLow || tooHigh ? (
+        {slippageError || slippageTooLow || slippageTooHigh ? (
           <RowBetween
             style={{
               fontSize: '14px',
@@ -217,7 +239,7 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
           >
             {slippageError ? (
               <Trans>Enter a valid slippage percentage</Trans>
-            ) : tooLow ? (
+            ) : slippageTooLow ? (
               <Trans>Your transaction may fail</Trans>
             ) : (
               <Trans>Your transaction may be frontrun</Trans>
@@ -233,7 +255,7 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
               <Trans>Transaction deadline</Trans>
             </TYPE.black>
             <QuestionHelper
-              text={t`Your transaction will revert if it is pending for more than this period of time.`}
+              text={<Trans>Your transaction will revert if it is pending for more than this period of time.</Trans>}
             />
           </RowFixed>
           <RowFixed>
@@ -259,6 +281,72 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
               <Trans>minutes</Trans>
             </TYPE.body>
           </RowFixed>
+        </AutoColumn>
+      )}
+
+      {showFrontrunningProtectionRow && (
+        <AutoColumn gap="sm">
+          <RowFixed>
+            <TYPE.black fontSize={14} fontWeight={400} color={theme.text2}>
+              <Trans>Frontrunning Protection</Trans>
+            </TYPE.black>
+            <QuestionHelper
+              text={
+                <>
+                  <Trans>Your transaction will be protected from frontrunning attacks.</Trans>
+                  <TYPE.italic marginTop={'4px'}>
+                    <Trans>Powered by Flashbots & mistX</Trans>
+                  </TYPE.italic>
+                </>
+              }
+            />
+          </RowFixed>
+          <RowFixed>
+            <Toggle
+              id="toggle-frontrunning-protection"
+              isActive={frontrunningProtection}
+              toggle={() => setFrontrunningProtection(!frontrunningProtection)}
+            />
+          </RowFixed>
+        </AutoColumn>
+      )}
+
+      {frontrunningProtection && privateTransactionFees && (
+        <AutoColumn gap="sm">
+          <RowFixed>
+            <TYPE.black fontSize={14} fontWeight={400} color={theme.text2}>
+              <Trans>Max gas fee</Trans>
+            </TYPE.black>
+            <QuestionHelper text={<Trans>Maximum gas fee for frontrunning protected swaps.</Trans>} />
+          </RowFixed>
+          <Row>
+            <Option
+              onClick={() => {
+                setFrontrunningProtectionGasFee('med')
+              }}
+              active={frontrunningProtectionGasFee === 'med'}
+            >
+              <Trans>
+                High:{' '}
+                {BigNumber.from(privateTransactionFees.med.maxFeePerGas)
+                  .add(privateTransactionFees.med.maxPriorityFeePerGas)
+                  .div(1000000000)}
+              </Trans>
+            </Option>
+            <Option
+              onClick={() => {
+                setFrontrunningProtectionGasFee('high')
+              }}
+              active={frontrunningProtectionGasFee === 'high'}
+            >
+              <Trans>
+                Instant:{' '}
+                {BigNumber.from(privateTransactionFees.high.maxFeePerGas)
+                  .add(privateTransactionFees.high.maxPriorityFeePerGas)
+                  .div(1000000000)}
+              </Trans>
+            </Option>
+          </Row>
         </AutoColumn>
       )}
     </AutoColumn>

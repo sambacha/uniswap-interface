@@ -1,6 +1,6 @@
 import { parseUnits } from '@ethersproject/units'
+import { Currency, CurrencyAmount, Percent, TradeType, Ether } from '@uniswap/sdk-core'
 import { t } from '@lingui/macro'
-import { Currency, CurrencyAmount, Percent, TradeType } from '@uniswap/sdk-core'
 import { Trade as V2Trade } from '@uniswap/v2-sdk'
 import { Trade as V3Trade } from '@uniswap/v3-sdk'
 import { TWO_PERCENT } from 'constants/misc'
@@ -23,6 +23,12 @@ import { AppState } from '../index'
 import { useCurrencyBalances } from '../wallet/hooks'
 import { Field, replaceSwapState, selectCurrency, setRecipient, switchCurrencies, typeInput } from './actions'
 import { SwapState } from './reducer'
+import { useUserSingleHopOnly, useFrontrunningProtection } from 'state/user/hooks'
+import { useAppDispatch, useAppSelector } from 'state/hooks'
+import useFeesPerGas from '../../hooks/useFeesPerGas'
+import { BigNumber } from 'ethers'
+
+const ESTIMATED_GAS_USED_FOR_SWAP = 300000
 
 export function useSwapState(): AppState['swap'] {
   return useAppSelector((state) => state.swap)
@@ -129,7 +135,7 @@ export function useDerivedSwapInfo(toggledVersion: Version | undefined): {
   bestTrade: V2Trade<Currency, Currency, TradeType> | V3Trade<Currency, Currency, TradeType> | undefined
   allowedSlippage: Percent
 } {
-  const { account } = useActiveWeb3React()
+  const { account, chainId } = useActiveWeb3React()
 
   const {
     independentField,
@@ -147,6 +153,7 @@ export function useDerivedSwapInfo(toggledVersion: Version | undefined): {
   const relevantTokenBalances = useCurrencyBalances(account ?? undefined, [
     inputCurrency ?? undefined,
     outputCurrency ?? undefined,
+    chainId ? Ether.onChain(chainId) : undefined,
   ])
 
   const isExactIn: boolean = independentField === Field.INPUT
@@ -198,10 +205,15 @@ export function useDerivedSwapInfo(toggledVersion: Version | undefined): {
     [Field.OUTPUT]: relevantTokenBalances[1],
   }
 
+  const ethBalance = relevantTokenBalances[2]
+
   const currencies: { [field in Field]?: Currency | null } = {
     [Field.INPUT]: inputCurrency,
     [Field.OUTPUT]: outputCurrency,
   }
+
+  const frontrunningProtection = useFrontrunningProtection()
+  const feesPerGas = useFeesPerGas()
 
   let inputError: string | undefined
   if (!account) {
@@ -232,7 +244,17 @@ export function useDerivedSwapInfo(toggledVersion: Version | undefined): {
   const allowedSlippage = useSwapSlippageTolerance(bestTrade ?? undefined)
 
   // compare input balance to max input based on version
-  const [balanceIn, amountIn] = [currencyBalances[Field.INPUT], bestTrade?.maximumAmountIn(allowedSlippage)]
+  const [balanceIn, amountIn] = [currencyBalances[Field.INPUT], toggledTrade?.maximumAmountIn(allowedSlippage)]
+  if (amountIn && frontrunningProtection && feesPerGas.maxFeePerGas && feesPerGas.maxPriorityFeePerGas) {
+    const rawFeeAmount = BigNumber.from(feesPerGas.maxFeePerGas)
+      .add(feesPerGas.maxPriorityFeePerGas)
+      .mul(ESTIMATED_GAS_USED_FOR_SWAP)
+    const requiredGasFeeAmount = CurrencyAmount.fromRawAmount(Ether.onChain(1), rawFeeAmount.toString())
+    const modifiedEthBalance = amountIn?.currency.isNative ? ethBalance?.subtract(amountIn) : ethBalance
+    if (!modifiedEthBalance || modifiedEthBalance.lessThan(requiredGasFeeAmount)) {
+      inputError = t`Insufficient ETH balance for gas fees`
+    }
+  }
 
   if (balanceIn && amountIn && balanceIn.lessThan(amountIn)) {
     inputError = t`Insufficient ${amountIn.currency.symbol} balance`

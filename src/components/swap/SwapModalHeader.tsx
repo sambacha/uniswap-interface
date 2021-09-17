@@ -6,6 +6,7 @@ import { ArrowDown, AlertTriangle } from 'react-feather'
 import { Text } from 'rebass'
 import styled, { ThemeContext } from 'styled-components/macro'
 import { useUSDCValue } from '../../hooks/useUSDCPrice'
+import { useFrontrunningProtection } from '../../state/user/hooks'
 import { TYPE } from '../../theme'
 import { ButtonPrimary } from '../Button'
 import { isAddress, shortenAddress } from '../../utils'
@@ -18,6 +19,7 @@ import { TruncatedText, SwapShowAcceptChanges } from './styleds'
 import { Trans } from '@lingui/macro'
 
 import { AdvancedSwapDetails } from './AdvancedSwapDetails'
+import { PrivateTransactionSwapDetails } from './PrivateTransactionSwapDetails'
 import { LightCard } from '../Card'
 
 import TradePrice from '../swap/TradePrice'
@@ -54,12 +56,11 @@ export default function SwapModalHeader({
   onAcceptChanges: () => void
 }) {
   const theme = useContext(ThemeContext)
-
   const [showInverted, setShowInverted] = useState<boolean>(false)
 
   const fiatValueInput = useUSDCValue(trade.inputAmount)
   const fiatValueOutput = useUSDCValue(trade.outputAmount)
-
+  const frontrunningProtection = useFrontrunningProtection()
   return (
     <AutoColumn gap={'4px'} style={{ marginTop: '1rem' }}>
       <LightCard padding="0.75rem 1rem">
@@ -130,6 +131,12 @@ export default function SwapModalHeader({
       <LightCard style={{ padding: '.75rem', marginTop: '0.5rem' }}>
         <AdvancedSwapDetails trade={trade} allowedSlippage={allowedSlippage} />
       </LightCard>
+
+      {frontrunningProtection ? (
+        <LightCard style={{ padding: '.75rem', marginTop: '0.5rem' }}>
+          <PrivateTransactionSwapDetails trade={trade} allowedSlippage={allowedSlippage} />
+        </LightCard>
+      ) : null}
 
       {showAcceptChanges ? (
         <SwapShowAcceptChanges justify="flex-start" gap={'0px'}>
