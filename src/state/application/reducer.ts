@@ -1,5 +1,6 @@
 import { createReducer, nanoid } from '@reduxjs/toolkit'
 import { Fees } from '@alchemist-coin/mistx-connect'
+import { DEFAULT_TXN_DISMISS_MS } from 'constants/misc'
 import {
   addPopup,
   PopupContent,
@@ -9,6 +10,7 @@ import {
   setOpenModal,
   updateChainId,
   updatePrivateTransactionFees,
+  setChainConnectivityWarning,
 } from './actions'
 
 type PopupList = Array<{ key: string; show: boolean; content: PopupContent; removeAfterMs: number | null }>
@@ -16,6 +18,7 @@ type PopupList = Array<{ key: string; show: boolean; content: PopupContent; remo
 export interface ApplicationState {
   // used by RTK-Query to build dynamic subgraph urls
   readonly chainId: number | null
+  readonly chainConnectivityWarning: boolean
   readonly blockNumber: { readonly [chainId: number]: number }
   readonly popupList: PopupList
   readonly openModal: ApplicationModal | null
@@ -24,6 +27,7 @@ export interface ApplicationState {
 
 const initialState: ApplicationState = {
   chainId: null,
+  chainConnectivityWarning: false,
   blockNumber: {},
   popupList: [],
   openModal: null,
@@ -47,7 +51,7 @@ export default createReducer(initialState, (builder) =>
     .addCase(setOpenModal, (state, action) => {
       state.openModal = action.payload
     })
-    .addCase(addPopup, (state, { payload: { content, key, removeAfterMs = 25000 } }) => {
+    .addCase(addPopup, (state, { payload: { content, key, removeAfterMs = DEFAULT_TXN_DISMISS_MS } }) => {
       state.popupList = (key ? state.popupList.filter((popup) => popup.key !== key) : state.popupList).concat([
         {
           key: key || nanoid(),
@@ -67,5 +71,7 @@ export default createReducer(initialState, (builder) =>
     .addCase(updatePrivateTransactionFees, (state, action) => {
       const { privateTransactionFees } = action.payload
       state.privateTransactionFees = privateTransactionFees
+    .addCase(setChainConnectivityWarning, (state, { payload: { warn } }) => {
+      state.chainConnectivityWarning = warn
     })
 )

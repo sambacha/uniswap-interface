@@ -1,10 +1,9 @@
 import { Percent, Token } from '@uniswap/sdk-core'
 import { computePairAddress, Pair } from '@uniswap/v2-sdk'
-import { L2_CHAIN_IDS } from 'constants/chains'
+import { L2_CHAIN_IDS, SupportedChainId } from 'constants/chains'
 import { SupportedLocale } from 'constants/locales'
 import { L2_DEADLINE_FROM_NOW } from 'constants/misc'
 import JSBI from 'jsbi'
-import flatMap from 'lodash.flatmap'
 import { useCallback, useMemo } from 'react'
 import { shallowEqual } from 'react-redux'
 import { useAppDispatch, useAppSelector } from 'state/hooks'
@@ -26,8 +25,8 @@ import {
   updateUserDarkMode,
   updateUserDeadline,
   updateUserExpertMode,
+  updateUserClientSideRouter,
   updateUserLocale,
-  updateUserSingleHopOnly,
   updateUserSlippageTolerance,
 } from './actions'
 
@@ -107,19 +106,26 @@ export function useExpertModeManager(): [boolean, () => void] {
   return [expertMode, toggleSetExpertMode]
 }
 
-export function useUserSingleHopOnly(): [boolean, (newSingleHopOnly: boolean) => void] {
+export function useClientSideRouter(): [boolean, (userClientSideRouter: boolean) => void] {
   const dispatch = useAppDispatch()
 
-  const singleHopOnly = useAppSelector((state) => state.user.userSingleHopOnly)
+  const clientSideRouter = useAppSelector((state) => Boolean(state.user.userClientSideRouter))
 
-  const setSingleHopOnly = useCallback(
-    (newSingleHopOnly: boolean) => {
-      dispatch(updateUserSingleHopOnly({ userSingleHopOnly: newSingleHopOnly }))
+  const setClientSideRouter = useCallback(
+    (newClientSideRouter: boolean) => {
+      dispatch(updateUserClientSideRouter({ userClientSideRouter: newClientSideRouter }))
     },
     [dispatch]
   )
 
-  return [singleHopOnly, setSingleHopOnly]
+  return [clientSideRouter, setClientSideRouter]
+}
+
+export function useRoutingAPIEnabled(): boolean {
+  const { chainId } = useActiveWeb3React()
+  const [clientSideRouter] = useClientSideRouter()
+
+  return chainId === SupportedChainId.MAINNET && !clientSideRouter
 }
 
 export function useSetUserSlippageTolerance(): (slippageTolerance: Percent | 'auto') => void {
@@ -345,7 +351,7 @@ export function useTrackedTokenPairs(): [Token, Token][] {
   const generatedPairs: [Token, Token][] = useMemo(
     () =>
       chainId
-        ? flatMap(Object.keys(tokens), (tokenAddress) => {
+        ? Object.keys(tokens).flatMap((tokenAddress) => {
             const token = tokens[tokenAddress]
             // for each token on the current chain,
             return (
