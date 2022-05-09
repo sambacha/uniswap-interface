@@ -195,6 +195,7 @@
     "@babel/runtime": "^7.17.0",
     "@fontsource/ibm-plex-mono": "^4.5.1",
     "@fontsource/inter": "^4.5.1",
+    "@metamask/eth-sig-util": "^4.0.1",
     "@popperjs/core": "^2.4.4",
     "@reduxjs/toolkit": "^1.6.1",
     "@uniswap/redux-multicall": "^1.1.1",

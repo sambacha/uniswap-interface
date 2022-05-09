@@ -9,7 +9,7 @@ import { TransactionType } from '../state/transactions/types'
 import { currencyId } from '../utils/currencyId'
 import useENS from './useENS'
 import { SignatureData } from './useERC20Permit'
-import { AnyTrade } from './useSwapCallArguments'
+import { AnyTrade } from './useSwapMessageArguments'
 import useTransactionDeadline from './useTransactionDeadline'
 
 // returns a function that will execute a swap, if the parameters are all valid

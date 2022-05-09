@@ -7,10 +7,11 @@ import { FeeOptions } from '@uniswap/v3-sdk'
 import useActiveWeb3React from 'hooks/useActiveWeb3React'
 import useENS from 'hooks/useENS'
 import { SignatureData } from 'hooks/useERC20Permit'
-import { AnyTrade, useSwapCallArguments } from 'hooks/useSwapCallArguments'
+import { AnyTrade, useSwapMessageArguments } from 'hooks/useSwapMessageArguments'
 import { ReactNode, useMemo } from 'react'
 
-import useSendSwapTransaction from './useSendSwapTransaction'
+// import useSendSwapTransaction from './useSendSwapTransaction'
+import useSendSwapMessage from './useSendSwapMessage'
 
 export enum SwapCallbackState {
   INVALID,
@@ -44,7 +45,7 @@ export function useSwapCallback({
 }: UseSwapCallbackArgs): UseSwapCallbackReturns {
   const { account, chainId, library } = useActiveWeb3React()
 
-  const swapCalls = useSwapCallArguments(
+  const swapMessages = useSwapMessageArguments(
     trade,
     allowedSlippage,
     recipientAddressOrName,
@@ -52,7 +53,7 @@ export function useSwapCallback({
     deadline,
     feeOptions
   )
-  const { callback } = useSendSwapTransaction(account, chainId, library, trade, swapCalls)
+  const { callback } = useSendSwapMessage(account, chainId, library, trade, swapMessages)
 
   const { address: recipientAddress } = useENS(recipientAddressOrName)
   const recipient = recipientAddressOrName === null ? account : recipientAddress
