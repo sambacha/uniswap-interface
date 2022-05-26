@@ -16,6 +16,7 @@ import { isAnimating } from 'lib/utils/animations'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { TradeState } from 'state/routing/types'
 import invariant from 'tiny-invariant'
+import { BigNumber } from 'ethers'
 
 import ActionButton, { ActionButtonProps } from '../../ActionButton'
 import Dialog from '../../Dialog'
@@ -27,7 +28,7 @@ interface SwapButtonProps {
 }
 
 export default memo(function SwapButton({ disabled }: SwapButtonProps) {
-  const { account, chainId } = useActiveWeb3React()
+  const { account, chainId, library } = useActiveWeb3React()
   const {
     [Field.INPUT]: {
       currency: inputCurrency,
@@ -104,24 +105,48 @@ export default memo(function SwapButton({ disabled }: SwapButtonProps) {
   useEffect(() => setIsPending(false), [inputCurrencyAmount, trade])
 
   const onSwap = useCallback(async () => {
+    console.log('you are in [SwapButton]')
     try {
       const transaction = await swapCallback?.()
-      if (!transaction) return
+      if (!transaction) {
+        console.log('[SwapButton] !transaction !!!')
+        return
+      } else {
+        console.log('[SwapButton] transaction exists!!!')
+      }
       invariant(trade.trade)
-      addTransaction({
-        response: transaction,
-        type: TransactionType.SWAP,
-        tradeType: trade.trade.tradeType,
-        inputCurrencyAmount: trade.trade.inputAmount,
-        outputCurrencyAmount: trade.trade.outputAmount,
-      })
-      setDisplayTxHash(transaction.hash)
+      const hash = "0xb97dbb9dd039be24820663a1ad9c149f03cc8c03b1e2fd3785fb57c0db115d75"
+      if (library) {
+        console.log("library", library)
+        const fakeTxResponse = {
+          hash,
+          confirmations: 0,
+          from: "0x0000000000092DD1482686a414A08e64fF1463C2",
+          wait: async () => {return await library.getTransactionReceipt(hash)},
+          nonce: 420,
+          gasLimit: BigNumber.from(420000),
+          data: "0x0",
+          value: BigNumber.from(0),
+          chainId: 5,
+        }
+        console.log('[SwapButton.onSwap] calling addTransaction')
+        addTransaction({
+          response: fakeTxResponse,
+          type: TransactionType.SWAP,
+          tradeType: trade.trade.tradeType,
+          inputCurrencyAmount: trade.trade.inputAmount,
+          outputCurrencyAmount: trade.trade.outputAmount,
+        })
+        setDisplayTxHash(hash)
 
-      // Set the block containing the response to the oldest valid block to ensure that the
-      // completed trade's impact is reflected in future fetched trades.
-      transaction.wait(1).then((receipt) => {
-        setOldestValidBlock(receipt.blockNumber)
-      })
+        // Set the block containing the response to the oldest valid block to ensure that the
+        // completed trade's impact is reflected in future fetched trades.
+        fakeTxResponse.wait().then((receipt) => {
+          setOldestValidBlock(receipt.blockNumber)
+        })
+      } else {
+        console.log("NO LIBRARY")
+      }
 
       // Only reset open after any queued animations to avoid layout thrashing, because a
       // successful swap will open the status dialog and immediately cover the summary dialog.

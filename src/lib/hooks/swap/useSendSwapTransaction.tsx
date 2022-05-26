@@ -36,6 +36,9 @@ interface FailedCall extends SwapCallEstimate {
   error: Error
 }
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// TODO: DEPRECATED; DELETE THIS FILE
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // returns a function that will execute a swap, if the parameters are all valid
 export default function useSendSwapTransaction(
   account: string | null | undefined,

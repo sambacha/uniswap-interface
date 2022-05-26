@@ -3,7 +3,8 @@ import { Trade } from '@uniswap/router-sdk'
 import { Currency, CurrencyAmount, Percent, TradeType } from '@uniswap/sdk-core'
 import { Router as V2SwapRouter, Trade as V2Trade } from '@uniswap/v2-sdk'
 import { FeeOptions, Trade as V3Trade } from '@uniswap/v3-sdk'
-import { SWAP_ROUTER_ADDRESSES, V3_ROUTER_ADDRESS } from 'constants/addresses'
+// import { SWAP_ROUTER_ADDRESSES, V3_ROUTER_ADDRESS } from 'constants/addresses'
+import { V3_ROUTER_ADDRESS } from 'constants/addresses'
 import useActiveWeb3React from 'hooks/useActiveWeb3React'
 import { SwapMessage } from 'lib/hooks/swap/useSendSwapMessage'
 import { useMemo } from 'react'
@@ -44,6 +45,8 @@ function swapMessageParametersV3(trade: AnyTrade): MessageParams {
     singleHop = trade.swaps[0].route.pools.length === 1
   } else if (trade instanceof V2Trade) {
     path = trade.route.path.map((p) => p.address)
+  } else {
+    path = trade.swaps[0].route.path.map((p) => p.address)
   }
 
   const amountIn = BigNumber.from(trade.inputAmount.numerator.toString()).div(
@@ -56,9 +59,9 @@ function swapMessageParametersV3(trade: AnyTrade): MessageParams {
   let tradeType: string
   if (singleHop) {
     if (trade.tradeType === TradeType.EXACT_INPUT) {
-      tradeType = 'V3_exactInputSingle'
+      tradeType = 'v3_exactInputSingle'
     } else {
-      tradeType = 'V3_exactOutputSingle'
+      tradeType = 'v3_exactOutputSingle'
     }
   } else {
     if (trade.tradeType === TradeType.EXACT_INPUT) {
@@ -136,7 +139,7 @@ export function useSwapMessageArguments(
           router: routerContract.address,
           amountIn: BigNumber.from(trade.inputAmount),
           amountOut: BigNumber.from(trade.outputAmount),
-          tradeType: `V2_${methodName}`, // TODO: enum?
+          tradeType: `v2_${methodName}`, // TODO: enum?
           recipient,
           path: trade.route.path.map((p) => p.address),
           deadline: deadline.toNumber(),
@@ -200,11 +203,13 @@ export function useSwapMessageArguments(
       //     : {}),
       // }
 
-      const swapRouterAddress = chainId
-        ? trade instanceof V3Trade
-          ? V3_ROUTER_ADDRESS[chainId]
-          : SWAP_ROUTER_ADDRESSES[chainId]
-        : undefined
+      // const swapRouterAddress = chainId
+      //   ? trade instanceof V3Trade
+      //     ? V3_ROUTER_ADDRESS[chainId]
+      //     : SWAP_ROUTER_ADDRESSES[chainId]
+      //   : undefined
+      // TODO: can we use SWAP_ROUTER_ADDRESS?
+      const swapRouterAddress = chainId ? V3_ROUTER_ADDRESS[chainId] : undefined
       if (!swapRouterAddress) return []
 
       // const { value, calldata } =
@@ -219,6 +224,7 @@ export function useSwapMessageArguments(
       //       })
 
       const messageParams = swapMessageParametersV3(trade)
+      console.log('V3 message params', messageParams)
 
       const swap: SwapMessage = {
         router: swapRouterAddress,
@@ -228,10 +234,10 @@ export function useSwapMessageArguments(
         recipient,
         path: messageParams.path,
         deadline: deadline.toNumber(),
-        sqrtPriceLimitX96: BigNumber.from(0),
-        fee: 0,
+        sqrtPriceLimitX96: BigNumber.from(0), // TODO: get real value for this
+        fee: 3000, // TODO: get real value for this
       }
-      console.log('swap', swap)
+      console.log('*swap', swap)
       return [swap]
       // ====================================================================================
 

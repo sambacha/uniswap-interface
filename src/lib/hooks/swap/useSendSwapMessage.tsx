@@ -1,5 +1,5 @@
 import { BigNumber } from '@ethersproject/bignumber'
-import { JsonRpcProvider, TransactionResponse } from '@ethersproject/providers'
+import { JsonRpcProvider } from '@ethersproject/providers'
 // eslint-disable-next-line no-restricted-imports
 // import { t, Trans } from '@lingui/macro'
 import { Trade } from '@uniswap/router-sdk'
@@ -27,6 +27,18 @@ export interface SwapMessage {
   deadline: number
   sqrtPriceLimitX96: BigNumber
   fee: number
+  // TODO: idea: generalize to support non-uniswap? let order filler decide execution method themselves; don't do it here.
+}
+
+export interface JsonRpcResponse {
+  id?: string | number
+  jsonrpc: string // `2.0`
+  result: string
+}
+
+export interface SignedMessageResponse {
+  signature: string
+  message: any // TODO: strongly type this
 }
 
 // returns a function that will ask the user to sign a message
@@ -36,19 +48,20 @@ export default function useSendSwapMessage(
   library: JsonRpcProvider | undefined,
   trade: AnyTrade | undefined, // trade to execute, required
   swapMessages: SwapMessage[]
-): { callback: null | (() => Promise<TransactionResponse>) } {
+): { callback: null | (() => Promise<SignedMessageResponse>) } {
   return useMemo(() => {
     if (!trade || !library || !account || !chainId) {
       return { callback: null }
     }
     return {
-      callback: async function onSwap(): Promise<TransactionResponse> {
+      callback: async function onSwap(): Promise<SignedMessageResponse> {
         console.log('[useSendSwapMessage] swapMessages', swapMessages)
 
         const message = swapMessages[0]
-        const verifyingContract = '0xFbdd1b7ac7b9C2411b695B9c60a0d0643C1FA175'
+        // TODO: get this from ENV
+        const verifyingContract = '0xbfCFe863d5e0c9EdaA61116e6F17416505059758'
 
-        const testdata = {
+        const messagePayload = {
           types: {
             EIP712Domain: [
               { name: 'name', type: 'string' },
@@ -64,8 +77,8 @@ export default function useSendSwapMessage(
               { name: 'recipient', type: 'address' },
               { name: 'path', type: 'address[]' },
               { name: 'deadline', type: 'uint' },
-              { name: 'sqrtPriceLimitX96', type: 'uint160' },
-              { name: 'fee', type: 'uint24' },
+              { name: 'sqrtPriceLimitX96', type: 'uint256' },
+              { name: 'fee', type: 'uint256' },
             ],
           },
           domain: {
@@ -76,19 +89,27 @@ export default function useSendSwapMessage(
           },
           primaryType: 'SwapOrder',
           message: {
-            router: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
-            amountIn: message.amountIn._hex,
-            amountOut: message.amountOut._hex, // 3000 DAI/ETH
-            tradeType: 'EXACT_INPUT_SINGLE_V3',
+            router: message.router,
+            amountIn: message.amountIn.toString(),
+            amountOut: message.amountOut.toString(),
+            tradeType: message.tradeType,
             recipient: account,
             path: message.path,
-            deadline: BigNumber.from(Math.floor((Date.now() + 30 * 60 * 1000) / 1000))._hex, // 30 min from now
-            sqrtPriceLimitX96: 0x0,
-            fee: 0x0,
+            deadline: message.deadline.toString(),
+            sqrtPriceLimitX96: message.sqrtPriceLimitX96.toString(),
+            fee: message.fee.toString(),
           },
         }
 
-        return library.send('eth_signTypedData_v4', [await library.getSigner().getAddress(), JSON.stringify(testdata)])
+        const signatureRes = await library.send('eth_signTypedData_v4', [
+          await library.getSigner().getAddress(),
+          JSON.stringify(messagePayload),
+        ])
+        console.log('***signatureRes', signatureRes)
+        return {
+          signature: signatureRes,
+          message: messagePayload,
+        }
       },
     }
   }, [account, chainId, library, swapMessages, trade])

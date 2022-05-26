@@ -1,6 +1,6 @@
 // eslint-disable-next-line no-restricted-imports
 import { BigNumber } from '@ethersproject/bignumber'
-import { TransactionResponse } from '@ethersproject/providers'
+// import { TransactionResponse } from '@ethersproject/providers'
 import { Trans } from '@lingui/macro'
 import { Percent } from '@uniswap/sdk-core'
 import { FeeOptions } from '@uniswap/v3-sdk'
@@ -11,7 +11,7 @@ import { AnyTrade, useSwapMessageArguments } from 'hooks/useSwapMessageArguments
 import { ReactNode, useMemo } from 'react'
 
 // import useSendSwapTransaction from './useSendSwapTransaction'
-import useSendSwapMessage from './useSendSwapMessage'
+import useSendSwapMessage, { SignedMessageResponse } from './useSendSwapMessage'
 
 export enum SwapCallbackState {
   INVALID,
@@ -21,7 +21,7 @@ export enum SwapCallbackState {
 
 interface UseSwapCallbackReturns {
   state: SwapCallbackState
-  callback?: () => Promise<TransactionResponse>
+  callback?: () => Promise<SignedMessageResponse>
   error?: ReactNode
 }
 interface UseSwapCallbackArgs {
