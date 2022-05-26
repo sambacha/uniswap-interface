@@ -215,7 +215,7 @@ export default function WalletModal({
 
   // get wallets user can switch too, depending on device/browser
   function getOptions() {
-    const isMetamask = window.ethereum && window.ethereum.isMetaMask
+    const isMetamask = !!window.ethereum?.isMetaMask
     return Object.keys(SUPPORTED_WALLETS).map((key) => {
       const option = SUPPORTED_WALLETS[key]
       // check for mobile options
@@ -410,6 +410,14 @@ export default function WalletModal({
                 <ArrowRight size={16} />
               </RowBetween>
             </LinkCard>
+            <ThemedText.Black fontSize={14}>
+              <ExternalLink href="https://help.uniswap.org/en/articles/5391525-what-is-a-wallet">
+                <Row justify="center" alignItems="center">
+                  <Trans>Learn more about wallets</Trans>
+                  <ArrowRight size={16} />
+                </Row>
+              </ExternalLink>
+            </ThemedText.Black>
           </AutoColumn>
         </ContentWrapper>
       </UpperSection>
