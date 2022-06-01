@@ -6,6 +6,7 @@ import { Trade } from '@uniswap/router-sdk'
 import { Currency, TradeType } from '@uniswap/sdk-core'
 import { Trade as V2Trade } from '@uniswap/v2-sdk'
 import { Trade as V3Trade } from '@uniswap/v3-sdk'
+import { VERIFYING_CONTRACT_EIP712 } from 'constants/addresses'
 import { useMemo } from 'react'
 // import { calculateGasMargin } from 'utils/calculateGasMargin'
 // import isZero from 'utils/isZero'
@@ -58,8 +59,6 @@ export default function useSendSwapMessage(
         console.log('[useSendSwapMessage] swapMessages', swapMessages)
 
         const message = swapMessages[0]
-        // TODO: get this from ENV
-        const verifyingContract = '0xbfCFe863d5e0c9EdaA61116e6F17416505059758'
 
         const messagePayload = {
           types: {
@@ -85,7 +84,7 @@ export default function useSendSwapMessage(
             name: 'SonOfASwap',
             version: '1',
             chainId,
-            verifyingContract,
+            verifyingContract: VERIFYING_CONTRACT_EIP712,
           },
           primaryType: 'SwapOrder',
           message: {
