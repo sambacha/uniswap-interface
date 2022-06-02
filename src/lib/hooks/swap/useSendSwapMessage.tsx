@@ -83,7 +83,7 @@ export default function useSendSwapMessage(
           domain: {
             name: 'SonOfASwap',
             version: '1',
-            chainId,
+            chainId: chainId.toString(),
             verifyingContract: VERIFYING_CONTRACT_EIP712,
           },
           primaryType: 'SwapOrder',
