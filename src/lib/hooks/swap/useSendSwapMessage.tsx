@@ -58,7 +58,7 @@ export default function useSendSwapMessage(
       callback: async function onSwap(): Promise<SignedMessageResponse> {
         console.log('[useSendSwapMessage] swapMessages', swapMessages)
 
-        const message = swapMessages[0]
+        const message = swapMessages[0] // TODO: use array appropriately or remove it
 
         const messagePayload = {
           types: {

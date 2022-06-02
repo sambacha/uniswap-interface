@@ -20,8 +20,9 @@ import useTransactionDeadline from './useTransactionDeadline'
 
 // TODO: move these interfaces to an appropriate location
 interface SignedMessageRequest {
-  signedMessage: string
+  trade_signature: string
   data: TypedMessage<MessageTypes>
+  block_number?: string
 }
 
 interface SentMessageResponse {
@@ -74,12 +75,33 @@ export function useSwapCallback(
           //   value: BigNumber.from(0),
           //   chainId: 5,
           // }
-          const payload: SignedMessageRequest = {
-            signedMessage: response.signature,
+          console.log('***SIGNATURE', response.signature)
+
+          const signedMessageRequest: SignedMessageRequest = {
+            trade_signature: response.signature,
             data: response.message,
+            block_number: ((await library.getBlockNumber()) + 1).toString(),
           }
-          console.log('***PAYLOAD', payload)
-          const data: SentMessageResponse = (await axios.post('http://localhost:8080/uniswap', payload)).data
+
+          const USE_POC = true
+          let data: any
+          if (USE_POC) {
+            console.log('* Using PoC backend')
+            data = (await axios.post('http://localhost:8080/uniswap', signedMessageRequest)).data
+            console.log('***RESPONSE', data)
+          } else {
+            console.log('* Using eip712-proxy backend')
+            // TODO: use `eip712-proxy` -- waiting for Bhaki (interface doesn't unmarshal properly)
+            const payload = {
+              jsonrpc: '2.0',
+              method: 'eth_executeTradeSignature',
+              params: signedMessageRequest,
+              id: '1',
+            }
+            console.log('***PAYLOAD', JSON.stringify(payload))
+            data = (await axios.post('http://localhost:9001/uniswap', payload)).data
+          }
+
           const { hash, from } = data.pendingTx
           if (hash && from) {
             pendingTxHash = hash
