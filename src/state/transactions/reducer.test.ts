@@ -1,14 +1,15 @@
 import { createStore, Store } from 'redux'
 
 import { updateVersion } from '../global/actions'
-import {
+import reducer, {
   addTransaction,
   checkedTransaction,
   clearAllTransactions,
   finalizeTransaction,
-  TransactionType,
-} from './actions'
-import reducer, { initialState, TransactionState } from './reducer'
+  initialState,
+  TransactionState,
+} from './reducer'
+import { TransactionType } from './types'
 
 describe('transaction reducer', () => {
   let store: Store<TransactionState>
@@ -20,7 +21,7 @@ describe('transaction reducer', () => {
   describe('updateVersion', () => {
     it('clears old format transactions that do not have info', () => {
       store = createStore(reducer, {
-        [1]: {
+        1: {
           abc: {
             hash: 'abc',
           } as any,
@@ -31,7 +32,7 @@ describe('transaction reducer', () => {
     })
     it('keeps old format transactions that do have info', () => {
       store = createStore(reducer, {
-        [1]: {
+        1: {
           abc: {
             hash: 'abc',
             info: {},

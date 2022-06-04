@@ -1,24 +1,27 @@
 import { Trans } from '@lingui/macro'
-import { AbstractConnector } from '@web3-react/abstract-connector'
-import { UnsupportedChainIdError, useWeb3React } from '@web3-react/core'
-import { WalletConnectConnector } from '@web3-react/walletconnect-connector'
-import { AutoRow } from 'components/Row'
+import { AutoColumn } from 'components/Column'
+import { PrivacyPolicy } from 'components/PrivacyPolicy'
+import Row, { AutoRow, RowBetween } from 'components/Row'
 import { useEffect, useState } from 'react'
-import ReactGA from 'react-ga'
+import { ArrowLeft, ArrowRight, Info } from 'react-feather'
+import ReactGA from 'react-ga4'
 import styled from 'styled-components/macro'
+import { AbstractConnector } from 'web3-react-abstract-connector'
+import { UnsupportedChainIdError, useWeb3React } from 'web3-react-core'
+import { WalletConnectConnector } from 'web3-react-walletconnect-connector'
 
 import MetamaskIcon from '../../assets/images/metamask.png'
 import { ReactComponent as Close } from '../../assets/images/x.svg'
-import { fortmatic, injected, portis } from '../../connectors'
+import { fortmatic, injected } from '../../connectors'
 import { OVERLAY_READY } from '../../connectors/Fortmatic'
 import { SUPPORTED_WALLETS } from '../../constants/wallet'
 import usePrevious from '../../hooks/usePrevious'
-import { ApplicationModal } from '../../state/application/actions'
 import { useModalOpen, useWalletModalToggle } from '../../state/application/hooks'
-import { ExternalLink, TYPE } from '../../theme'
+import { ApplicationModal } from '../../state/application/reducer'
+import { ExternalLink, ThemedText } from '../../theme'
 import { isMobile } from '../../utils/userAgent'
 import AccountDetails from '../AccountDetails'
-import { LightCard } from '../Card'
+import Card, { LightCard } from '../Card'
 import Modal from '../Modal'
 import Option from './Option'
 import PendingView from './PendingView'
@@ -105,11 +108,22 @@ const HoverText = styled.div`
   }
 `
 
+const LinkCard = styled(Card)`
+  background-color: ${({ theme }) => theme.bg1};
+  color: ${({ theme }) => theme.text3};
+
+  :hover {
+    cursor: pointer;
+    filter: brightness(0.9);
+  }
+`
+
 const WALLET_VIEWS = {
   OPTIONS: 'options',
   OPTIONS_SECONDARY: 'options_secondary',
   ACCOUNT: 'account',
   PENDING: 'pending',
+  LEGAL: 'legal',
 }
 
 export default function WalletModal({
@@ -125,6 +139,7 @@ export default function WalletModal({
   const { active, account, connector, activate, error } = useWeb3React()
 
   const [walletView, setWalletView] = useState(WALLET_VIEWS.ACCOUNT)
+  const previousWalletView = usePrevious(walletView)
 
   const [pendingWallet, setPendingWallet] = useState<AbstractConnector | undefined>()
 
@@ -177,7 +192,7 @@ export default function WalletModal({
     setWalletView(WALLET_VIEWS.PENDING)
 
     // if the connector is walletconnect and the user has already tried to connect, manually reset the connector
-    if (connector instanceof WalletConnectConnector && connector.walletConnectProvider?.wc?.uri) {
+    if (connector instanceof WalletConnectConnector) {
       connector.walletConnectProvider = undefined
     }
 
@@ -200,16 +215,11 @@ export default function WalletModal({
 
   // get wallets user can switch too, depending on device/browser
   function getOptions() {
-    const isMetamask = window.ethereum && window.ethereum.isMetaMask
+    const isMetamask = !!window.ethereum?.isMetaMask
     return Object.keys(SUPPORTED_WALLETS).map((key) => {
       const option = SUPPORTED_WALLETS[key]
       // check for mobile options
       if (isMobile) {
-        //disable portis on mobile for now
-        if (option.connector === portis) {
-          return null
-        }
-
         if (!window.web3 && !window.ethereum && option.mobile) {
           return (
             <Option
@@ -297,12 +307,36 @@ export default function WalletModal({
           <ContentWrapper>
             {error instanceof UnsupportedChainIdError ? (
               <h5>
-                <Trans>Please connect to the appropriate Ethereum network.</Trans>
+                <Trans>Please connect to a supported network in the dropdown menu or in your wallet.</Trans>
               </h5>
             ) : (
               <Trans>Error connecting. Try refreshing the page.</Trans>
             )}
           </ContentWrapper>
+        </UpperSection>
+      )
+    }
+    if (walletView === WALLET_VIEWS.LEGAL) {
+      return (
+        <UpperSection>
+          <HeaderRow>
+            <HoverText
+              onClick={() => {
+                setWalletView(
+                  (previousWalletView === WALLET_VIEWS.LEGAL ? WALLET_VIEWS.ACCOUNT : previousWalletView) ??
+                    WALLET_VIEWS.ACCOUNT
+                )
+              }}
+            >
+              <ArrowLeft />
+            </HoverText>
+            <Row justify="center">
+              <ThemedText.MediumHeader>
+                <Trans>Legal & Privacy</Trans>
+              </ThemedText.MediumHeader>
+            </Row>
+          </HeaderRow>
+          <PrivacyPolicy />
         </UpperSection>
       )
     }
@@ -330,40 +364,61 @@ export default function WalletModal({
                 setWalletView(WALLET_VIEWS.ACCOUNT)
               }}
             >
-              <Trans>Back</Trans>
+              <ArrowLeft />
             </HoverText>
           </HeaderRow>
         ) : (
           <HeaderRow>
             <HoverText>
-              <Trans>Connect to a wallet</Trans>
+              <Trans>Connect a wallet</Trans>
             </HoverText>
           </HeaderRow>
         )}
 
         <ContentWrapper>
-          <LightCard style={{ marginBottom: '16px' }}>
-            <AutoRow style={{ flexWrap: 'nowrap' }}>
-              <TYPE.main fontSize={14}>
-                <Trans>
-                  By connecting a wallet, you agree to Uniswap Labs’{' '}
-                  <ExternalLink href="https://uniswap.org/terms-of-service/">Terms of Service</ExternalLink> and
-                  acknowledge that you have read and understand the{' '}
-                  <ExternalLink href="https://uniswap.org/disclaimer/">Uniswap protocol disclaimer</ExternalLink>.
-                </Trans>
-              </TYPE.main>
-            </AutoRow>
-          </LightCard>
-          {walletView === WALLET_VIEWS.PENDING ? (
-            <PendingView
-              connector={pendingWallet}
-              error={pendingError}
-              setPendingError={setPendingError}
-              tryActivation={tryActivation}
-            />
-          ) : (
-            <OptionGrid>{getOptions()}</OptionGrid>
-          )}
+          <AutoColumn gap="16px">
+            <LightCard>
+              <AutoRow style={{ flexWrap: 'nowrap' }}>
+                <ThemedText.Black fontSize={14}>
+                  <Trans>
+                    By connecting a wallet, you agree to Uniswap Labs’{' '}
+                    <ExternalLink href="https://uniswap.org/terms-of-service/">Terms of Service</ExternalLink> and
+                    acknowledge that you have read and understand the Uniswap{' '}
+                    <ExternalLink href="https://uniswap.org/disclaimer/">Protocol Disclaimer</ExternalLink>.
+                  </Trans>
+                </ThemedText.Black>
+              </AutoRow>
+            </LightCard>
+            {walletView === WALLET_VIEWS.PENDING ? (
+              <PendingView
+                connector={pendingWallet}
+                error={pendingError}
+                setPendingError={setPendingError}
+                tryActivation={tryActivation}
+              />
+            ) : (
+              <OptionGrid>{getOptions()}</OptionGrid>
+            )}
+            <LinkCard padding=".5rem" $borderRadius=".75rem" onClick={() => setWalletView(WALLET_VIEWS.LEGAL)}>
+              <RowBetween>
+                <AutoRow gap="4px">
+                  <Info size={20} />
+                  <ThemedText.Label fontSize={14}>
+                    <Trans>How this app uses APIs</Trans>
+                  </ThemedText.Label>
+                </AutoRow>
+                <ArrowRight size={16} />
+              </RowBetween>
+            </LinkCard>
+            <ThemedText.Black fontSize={14}>
+              <ExternalLink href="https://help.uniswap.org/en/articles/5391525-what-is-a-wallet">
+                <Row justify="center" alignItems="center">
+                  <Trans>Learn more about wallets</Trans>
+                  <ArrowRight size={16} />
+                </Row>
+              </ExternalLink>
+            </ThemedText.Black>
+          </AutoColumn>
         </ContentWrapper>
       </UpperSection>
     )
